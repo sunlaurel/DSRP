@@ -4,7 +4,9 @@
 .Ruserdata
 
 # project file
-DSRP.Rproj
+*.Rproj
+.DS_Store
+*.png
 
 ## folders
 notes/

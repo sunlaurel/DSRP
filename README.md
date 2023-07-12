@@ -2,7 +2,7 @@
 
 ### About the [movies data set](https://www.kaggle.com/datasets/ashishkumarjayswal/movies-updated-data)
 
-The movies data is a list of all the movies released between 1980-1981. It has information about its overall ratings (on a scale of 1-10), its genre, its directors, etc.
+The movies data is a list of all the movies released between 1980-2001. It has information about its overall ratings (on a scale of 1-10), its genre, its directors, etc.
 
 ### Purpose
 
