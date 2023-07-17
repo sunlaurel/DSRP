@@ -33,5 +33,5 @@ chisq_result <- chisq.test(t)
 chisq_result$p.value
 chisq_result$residuals
 ## the p-value is 0.087739
-## null hypothesis: there is no significant association between the company and the genre of the movie it releases
+## Conclusion: there is no significant association between the company and the genre of the movie it releases
 ## based on the chi-squared test (p-value = 0.087739)
