@@ -1,0 +1,6 @@
+"0","class_results <- class_test
+
+class_results$lm_pred <- predict(lm_fit, class_test)$.pred_class
+"
+"2","Error: variable 'Species' was fitted with type ""numeric"" but type ""factor"" was supplied
+"

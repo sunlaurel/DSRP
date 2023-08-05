@@ -1,0 +1,373 @@
+# Extra functions
+
+```{r setup}
+## install.packages("tidymodels")
+## install.packages("ranger")
+## install.packages("xgboost")
+## install.packages("reshape2")
+## install.packages("Metrics")
+
+library(tidyr)
+library(dplyr)
+library(janitor)
+library(ggplot2)
+library(reshape2)
+library(rsample)
+library(parsnip)
+library(yardstick)
+library(Metrics)
+```
+
+## `ifelse()`
+
+```{r}
+x <- 7
+x <- c(1, 3, 5, 7, 9)
+ifelse(x < 5, "small number", "big number")
+```
+
+## `case_when()`
+
+`case_when()` is a dplyr function
+
+```{r}
+head(iris)
+mean(iris$Petal.Width)
+iris_new <- iris
+
+## add categorical column
+iris_new <- mutate(iris_new, 
+                   petal_size = ifelse(Petal.Width > 1, "big", "small"))
+
+iris_new <- mutate(iris_new,
+                   petal_size = case_when(
+                     Petal.Width < 1 ~ "small",
+                     Petal.Width < 2 ~ "medium",
+                     Petal.Width >= 2 ~ "big"
+                     ## the default for dealing with NA values: .default ~ NA
+                     ## to catch all other cases, use TRUE ~ big
+                   ))
+```
+
+## Saving plots
+
+You can either:
+
+-   `ggsave("file_name")`
+
+-   export
+
+-   right click and save image as
+
+# Machine Learning
+
+## PCA Review
+
+```{r}
+iris_num <- iris |> select(-Species)
+
+pcas <- prcomp(iris_num, scale. = T)
+summary(pcas)
+pcas$rotation
+
+pcas$rotation ^ 2
+## the results tell you which variables account for the variance in the data and tells you which variables to choose
+
+pca_vals <-  as.data.frame(pcas$x)
+pca_vals$Species <-  iris$Species
+
+```
+
+## Supervised Learning
+
+**Classification** - assign observations into specific categories, like classifying if a temperature is hot or cold
+
+**Regression -** predicts numeric values, like predicting the temperature tomorrow
+
+## Steps to training a ML model
+
+1.  collect data
+2.  clean/process data (fill in missing values, normalize)
+    -   filter rows / columns of data set
+
+    -   omit rows with NA values or set to column mean
+
+    -   code categorical variables as numeric integers
+
+    -   normalize numeric values
+3.  visualize data
+4.  perform feature selection
+5.  separate data into training set
+6.  choose a suitable model
+7.  train model on training dataset
+
+### See it in action!
+
+```{r}
+library(dplyr)
+
+#### Step 1, collect data ####
+head(iris)
+
+#### Step 2, clean and process data ####
+## get rid of NAs
+## only use na.omit() when you have specifically selected for the variables you want to include in the model
+
+noNAs <- na.omit(starwars)
+
+noNAs <- filter(starwars, !is.na(mass), !is.na(height))
+
+## Replace with means
+replaceWithMeans <- mutate(starwars,
+                           mass = ifelse(is.na(mass),
+                           mean(mass),
+                           mass))
+
+## Encoding categories as factors or integers
+## if categorical variable is a character, make it a factor
+intSpecies <- mutate(starwars,
+                     species = as.integer(as.factor(species)))
+
+## If categorical variable is already a factor, make it an integer
+irisAllNumeric <- mutate(iris,
+                     Species = as.integer(Species))
+
+#### Step 3, visualize data ####
+## Make a PCA
+## Calculate correlations
+irisCors <- irisAllNumeric |>
+  cor() |>
+  melt() |>
+  as.data.frame()
+
+ggplot(irisCors, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "red", high = "blue", mid = "white", midpoint = 0)
+
+## high correlation?
+ggplot(irisAllNumeric, aes(x = Petal.Length, y = Sepal.Length)) +
+  geom_point() +
+  theme_minimal()
+
+## low correlation?
+ggplot(irisAllNumeric, aes(x = Sepal.Width.Length, y = Sepal.Length)) +
+  geom_point() +
+  theme_minimal()
+
+#### Step 4: Perform feature selection ####
+## choose which variables you want to classify or predict
+## chose which variables you want to use as features in your model for iris data...
+## Classify on Species amd predict on Sepal.Length (regression) 
+
+#### Step 5, separate data into testing and training sets
+
+## Set a seed for reproducability
+set.seed(71723)
+
+## Regression data set splits
+## Choose 70-85% of data to train on
+## Put 75% of data into the training set
+
+## Create a split
+reg_split <- initial_split(irisAllNumeric, prop = 0.75)
+
+## Use the split to form testing and training sets
+reg_train <- training(reg_split)
+reg_test <- testing(reg_split)
+
+## Classification data set splits (use iris instead of irisAllNumeric)
+## Split the iris data set
+class_split <- initial_split(iris, prop = 0.75)
+
+## Train and test based on the data set
+class_train <- training(class_split)
+class_test <- testing(class_split)
+
+#### Steps 6 & 7, choose a ML model and train it, using the different functions listed below
+
+#### Step 8, evaluate model performance on test set ####
+## Calculate error for regression
+## lm_fit, boost_reg_fit, forest_reg_fit
+reg_results <- reg_test
+
+reg_results$lm_pred <- predict(lm_fit, reg_test)$.pred
+reg_results$boost_pred <- predict(boost_fit, reg_test)$.pred
+reg_results$forest_pred <- predict(forest_reg_fit, reg_test)$.pred
+
+## mean absolute error
+yardstick::mae(reg_results, Sepal.Length, lm_pred)
+yardstick::mae(reg_results, Sepal.Length, boost_pred)
+yardstick::mae(reg_results, Sepal.Length, forest_pred)
+
+## root mean squared error
+yardstick::rmse(reg_results, Sepal.Length, lm_pred)
+yardstick::rmse(reg_results, Sepal.Length, boost_pred)
+yardstick::rmse(reg_results, Sepal.Length, forest_pred)
+
+## calculate accuracy for classification models
+class_results <- class_test
+
+class_results$lm_pred <- predict(lm_fit, class_test)$.pred_class
+class_results$boost_pred <- predict(boost_class_fit, class_test)$.pred_class
+class_results$forest_pred <- predict(forest_class_fit, class_test)$.pred_class
+
+f1(class_results$Species, class_results$log_pred)
+f1(class_results$Species, class_results$boost_pred)
+f1(class_results$Species, class_results$forest_pred)
+```
+
+### `Tidymodel` structure
+
+`fit < function_name() }> set_engine("engine_name") |> fit(dependent_var ~ indep_var1 + indep_var2…, data = train_data)`
+
+`name_fit <- function_name() |> set_engine("engine_name") |> set_mode("regression" or "classification") |> fit(dependent_var ! indep_var1 + …, data = train_data)`
+
+`dependent_var` is the variable you want to classify or predict
+
+`indep_vars` are independent variables used in the model. Try changing the order or changing which variables to include
+
+#### Linear Regression
+
+-   sample, limited to only linear relationships
+
+-   easy to understand / interpret
+
+-   only uses numeric data
+
+    -   `y = m1x1 + m2x2 + b`
+
+-   `function_name()` is `linear_reg()`
+
+-   `"engine_name"` is `"glm"` or `"lm"`
+
+-   Coefficients are calculated by model: `lm_fit$fit$coefficients`
+
+-   H0: There is no relationship between dependent variable and the independent variables
+
+    -   `summary(lm_fit$fit)` to look at the significance for each variable
+
+    -   Try removing, adding, and changing the order of variables to see how the significance and R\^2 value changes
+
+```{r linear regression}
+## linear regression
+lm_fit <- linear_reg() |> 
+  set_engine("lm") |>
+  set_mode("regression") |>
+  fit(Sepal.Length ~ Petal.Length + Petal.Width + Species + Sepal.Width, data = reg_train)
+
+## To interpret data: Sepal.Length = intercept + Petal.Length * coefficient, etc
+
+summary(lm_fit$fit)
+```
+
+#### Logistic Regression
+
+-   Fits data to a more flexible function
+
+-   Used when y is a **binomial** categorical variable
+
+-   x values can be numeric or categorical
+
+    -   It's a classification model
+
+    -   `y = f(x1, x2,…)`
+
+    -   function_name = logistic_reg()
+
+    -   "engine_name" is "
+
+```{r logistic regression}
+## For logistic regression,
+## 1. Filter data to only 2 groups in categorical variable of interes
+## 2. Make the categorical varibale a factor
+## 3. Make your training and testing splits
+
+## For our purposes, we're just going to filter test and training (don't do this)
+binary_test_data <- filter(class_test, Species %in% c("setosa", "versicolor"))
+binary_train_data <- filter(class_train, Species %in% c("setosa", "versicolor"))
+
+## Build the model
+log_fit <- logistic_reg() |>
+    set_engine("glm") |>
+  set_mode("classification") |>
+  fit(Species ~ Petal.Width + Petal.Length + ., data = binary_train_data)
+
+log_fit$fit
+summary(log_fit$fit)
+```
+
+#### Boosted Trees and Random Forest
+
+-   Uses a **decision tree** structure instead of a formula
+
+-   Used to predict categorical or numeric variables
+
+-   Less interpretable and more computationally intensive
+
+    -   Random forests: make all the trees at the same time
+
+    -   Gradient boosting: I don't know
+
+    -   General boosting machine in R
+
+        -   `function_name()` is `boost_tree()`
+
+        -   `"engine_name"` is `"xgboost"`
+
+            -   Optional parameters:
+
+                -   `trees`: number of trees
+
+                -   `tree_depth`: number of splits
+
+                -   `learn_rate`: learning rate
+
+    -   Random Forest in R
+
+        -   `function_name()` is `rand_forest()`
+
+        -   `"engine_name"` is `"ranger"`
+
+            -   Optional parameters:
+
+                -   `trees`: number of trees to fit
+
+                -   `min_n`: minimal node size
+
+```{r boosted decision tree}
+## regression
+boost_fit <- boost_tree() |>
+  set_engine("xgboost") |>
+  set_mode("regression") |>
+  fit(Sepal.Length ~ ., data = reg_train)
+
+boost_fit$fit$evaluation_log
+
+## classification
+## use "classification" as the mode, and use Species as the predictor (independent) variable
+## Use class_train as the data
+boost_class_fit <- boost_tree() |>
+  set_engine("xgboost") |>
+  set_mode("classification") |>
+  fit(Species ~ ., data = class_train)
+
+boost_class_fit$fit$evaluation_log
+```
+
+```{r random forest}
+## regression
+forest_reg_fit <- rand_forest() |>
+  set_engine("ranger") |>
+  set_mode("regression") |>
+  fit(Sepal.Length ~ ., data = reg_train)
+
+forest_reg_fit$fit
+
+## classification
+forest_class_fit <- rand_forest() |>
+  set_engine("ranger") |>
+  set_mode("classification") |>
+  fit(Species ~ ., data = class_train)
+
+forest_class_fit$fit
+```

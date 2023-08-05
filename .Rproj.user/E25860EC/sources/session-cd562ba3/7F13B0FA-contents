@@ -1,0 +1,194 @@
+# Tidyr
+
+```{r setup}
+install.packages("janitor")
+install.packages("tidyr")
+
+library(janitor)
+library(tidyr)
+library(dplyr)
+```
+
+## Rename column names using `clean_names()`
+
+```{r}
+clean_data <- clean_names(starwars, case = "small_camel")
+
+clean_names(starwars, case = "screaming_snake")
+
+clean_names(clean_data)
+```
+
+`clean_names(data, case)` changes the column names based on the case. It's used to help data scientists clean up data better.
+
+The default case of clean_names(data) is snake case.
+
+```{r}
+new_starwars <- rename(clean_data, 'hair*color' = hairColor)
+clean_names(new_starwars)
+```
+
+## Combining multiple function calls using `pipe (|>)`
+
+```{r}
+## method one is to combine all the calls
+StarWarsWomen <- select(arrange(filter(starwars, sex == "female"), birth_year), name, species)
+
+## method two is to do all the function call separately
+StarWarsWomen <- filter(starwars, sex == "female")
+StarWarsWomen <- arrange(StarWarsWomen, birth_year)
+StarWarsWomen <- select(StarWarsWomen, species)
+```
+
+To use one function, do `function(data, parameters)` becomes `data |> function(parameters)`
+
+`function2(function(data, parameters), params2)` becomes `data |> function(parameters) |> function2(params2)`, so that the output of one pipe becomes the input of the next!
+
+Generally, indent by each function to make the code easier to read.
+
+```{r}
+StarWarsWomen <- starwars |> 
+  filter(sex == "female") |> 
+  arrange(birth_year) |> 
+  select(name, species)
+```
+
+## Filtering using `slice()`
+
+There are five handy functions that allow you to extract specific rows within each group:
+
+-   `slice_head(data, n = 1)` takes the first row from each group
+
+-   `slice_tail(data, n = 1)` takes the last row in each group
+
+-   `slice_min(data, x, n = 1)` takes the row with the smallest value of column `x`
+
+-   `slice_max(data, c, n = 1)` takes the row with the largest value of column `x`
+
+-   `slice_sample(data, n = 1)` takes a random row
+
+You can vary `n` to select more than one row, or instead of `n =`, you can use `prop = 0.1` to select (e.g.) 10% of the rows in each group.
+
+```{r}
+## 10 tallest Star Wars characters
+slice_max(starwars, height, n = 10)
+
+## Tallest Starwars characters of each species
+slice_max(starwars, height, n = 2, by = species)
+
+## removes ties
+slice_max(starwars, height, n = 2, by = height, with_ties = F)
+```
+
+If you forget the different `slice_` options, then you can use `?slice`
+
+## Tidy Up that Data!
+
+### pivot_longer()
+
+Removes columns
+
+```{r}
+## tables like table4a are helpful for practicing cleaning up data
+
+tidy_table4a <- pivot_longer(table4a,
+                             cols = c(`1999`, `2000`), ## have to use ``, not ''
+                             names_to = "year",
+                             values_to = "cases")
+
+table4b ## shows population data
+tidy_table4b <- pivot_longer(table4b,
+                             cols = c(`1999`, `2000`),
+                             names_to = "year",
+                             values_to = "population")
+
+## can use command + i to adjust indentation
+## can use option + - to make ' <- '
+```
+
+### pivot_wider()
+
+Adds additional columns
+
+```{r}
+table2
+pivot_wider(table2,
+            names_from = type,
+            values_from = count)
+```
+
+### separate()
+
+```{r}
+table3
+
+separate(table3,
+         rate,
+         into = c("cases", "population"),
+         sep = "/")
+```
+
+### unite()
+
+```{r}
+table5
+unite(table5,
+      "year",
+      c("century", "year"),
+      sep = "")
+
+tidy_table5 <- table5 |>
+  unite("year",
+        c("century", "year"),
+        sep = "") |>
+  separate(rate,
+           into = c("cases", "population"),
+           sep = "/")
+```
+
+### Binding rows
+
+```{r}
+row_data <- data.frame(country = "USA", year = '1999', cases = '1042', population = '2000000')
+
+bind_rows(tidy_table5, row_data)
+```
+
+# T-Tests
+
+Two sample t-test: `t.test(sample1_data, sample2_data)`
+
+one sample, one tailed t-test (\>): `t.test(sample.data, mu = mean, alternative = "greater")`
+
+one sample, one tailed t-test (\<): `t.test(sample.data, mu = mean, alternative = "less")`
+
+two sample, one-tailed t-test (\<): `t.test(sample1_data, sample2_data, alternative = "less")`
+
+two sample, paired, two-tailed t-test: `t.test(sample1_data, sample2_data, paired = T)`
+
+**One sample t-test:** is there a difference between a group and the population
+
+-   `H0: sample_mean = pop_mean`
+
+**independent sample t-test:** is there difference between two groups *\*\*most commonly used*
+
+-   `H0: sample1_mean = sample2_mean`
+
+**Paired samples t-test:** is there difference in group between two points in time
+
+-   `H0: mean(sample1 - sample2) = 0`
+
+**T value:** `t = (sampleMean - populationMean)/(sampleStandardDeviation)/sqrt(sampleSize)`
+
+```{r}
+## Compare the mass of male and female star wars characters?
+## H0 (null) hypothesis: average mass of female and male characters is the same
+## alternative hypothesis (HA): average mass of female and male star wars characters is different
+
+swHumans = starwars |> filter(species == "Human", mass > 0)
+males <- swHumans |> filter(sex == "male")
+females <- swHumans |> filter(sex == "female")
+
+t.test(males$mass, females$mass, paired = F, alternative = "two.sided")
+## p value is 0.06, which makes it not significant, and fails to reject the null hypothesis
+```

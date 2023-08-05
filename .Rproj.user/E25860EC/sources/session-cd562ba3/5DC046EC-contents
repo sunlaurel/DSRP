@@ -1,0 +1,189 @@
+# ANOVA (ANalysis Of VAriance)
+
+**F statistic:** `F = (variance between groups) / (variance within groups)`
+
+Null hypothesis: all groups have the same mean
+
+Alternate hypothesis: 2+ groups have different means
+
+## ANOVA in R
+
+`aov(data = dataset, numeric_var ~ cat_var)`
+
+`numeric_var`: the numeric variable you want to use to test for a difference
+
+`cat_var`: the categorical variable that you want to compare the groups of
+
+`~`: we can think of this as a `by` symbol
+
+## Finding Meaning of ANOVA in R
+
+`anova_test <- aov(data = dataset, numeric_var ~ cat_var)`
+
+`summary(anova_test)` : gives us overall summary if any categories are different
+
+`TuleyHSD(anova_test)` : tells us which categories are different
+
+-   *\*\*\*`TukeyHSD` requires categorical variables to be factors, so you have to coerce them into factors by using `factor(cat_var)` \*\*\**
+
+```{r setup}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+```
+
+```{r Sepal Length}
+anova_results <- aov(Sepal.Length ~ Species, iris)
+
+## Are any groups different from each other?
+summary(anova_results)
+
+## Which ones?
+TukeyHSD(anova_results)
+## ALL the mean sepal lengths are significantly different from each other
+```
+
+```{r Sepal Width}
+anova_results <- aov(Sepal.Width ~ Species, iris)
+
+## Are any groups different from each other?
+summary(anova_results)
+
+## Which ones?
+TukeyHSD(anova_results)
+## ALL the mean sepal widths are significantly different from each other
+```
+
+```{r}
+## Is there a significant difference in the mean petal lengths or petal widths by species?
+anova_results <- aov(Petal.Length ~ Species, iris)
+summary(anova_results)
+TukeyHSD(anova_results)
+## ALL the mean petal lengths are significantly different from each other
+
+anova_results <- aov(Petal.Width ~ Species, iris)
+summary(anova_results)
+TukeyHSD(anova_results)
+## ALL the mean petal widths are significantly different from each other
+```
+
+Now let's practice with Star Wars!
+
+```{r}
+unique(starwars$species)
+
+## Which five species are the most common?
+top3Species <- starwars |> 
+  summarize(.by = species, count = sum(!is.na(species))) |> slice_max(count, n = 3)
+            
+starwars_top3Species <-  starwars |> filter(species %in% top3Species$species)
+```
+
+### Practice
+
+```{r}
+## is there a significant difference in the mass of each of the top 3 species
+a <- aov(mass ~ species, starwars_top3Species)
+summary(a)
+TukeyHSD(a)
+
+## no, there is no significant difference
+```
+
+## Chi Squared Test in R
+
+Used to determine if there is a significant relationship between two variables
+
+To get counts per group combination, we can use `con_table <- table(data$var1, data$var2)` . For accurate results, make sure you have 10 or more observations in your group
+
+`chisq_results <- chisq.test(con_table)` . To get the significance, we can pull out the p-value from results: `chisq_results$p.value` and `chisq_results$residuals`
+
+-   Negative residual means observed \< expected
+
+-   Positive residual means observed \> expected
+
+-   Farther from 0, the greater the difference
+
+```{r}
+starwars_clean <- starwars |> 
+  filter(!is.na(species),
+         !is.na(homeworld))
+
+t <- table(starwars_clean$species, starwars_clean$homeworld)
+chisq.test(t) ## not enough data
+```
+
+Since there isn't enough data in starwars, let's look at mpg!
+
+```{r}
+
+## How do we get a contingency table of year and drive
+View(mpg)
+t <- table(mpg$year, mpg$drv)
+
+chisq_result <- chisq.test(t)
+chisq_result$p.value
+chisq_result$residuals
+```
+
+Corrplot:
+
+``` r
+{r}
+## install.packages("corrplot")
+library(corrplot)
+
+corrplot(chisq_result$residuals)
+```
+
+Heroes data set:
+
+```{r}
+heroes <- read.csv("../data/heroes_information.csv")
+
+## clean data
+heroes_clean <- heroes |>
+  filter(Alignment != "-",
+         Gender != "-")
+
+## plot the counts of aligment and gender
+ggplot(heroes_clean, aes(x = Gender, y = Alignment)) + 
+  geom_count()+
+  theme_minimal()
+
+## make contingency table
+t <- table(heroes_clean$Alignment, heroes_clean$Gender)
+
+## chi squared test
+chi <- chisq.test(t)
+chi$p.value
+chi$residuals
+
+corrplot(chi$residuals, is.cor = F)
+```
+
+# Difference between tests
+
+## T-test
+
+-   determine whether the means of ***two samples*** are statistically difference from each other
+
+-   Test statistic is based on sample means and standard error
+
+-   Can be paired or independent
+
+-   Can be one-tailed or two-tailed
+
+    -   `t.test(group1$var, group2$var)`
+
+## ANOVA
+
+-   determine whether the means of ***two or more samples*** are statistically different from each other
+
+-   test statistic is based on within-sample and between-sample variance
+
+## Chi-Square
+
+-   determine whether ***two variables*** are independent or associated
+
+-   Test statistics is based on expected and observed counts

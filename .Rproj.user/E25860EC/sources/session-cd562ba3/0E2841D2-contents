@@ -1,0 +1,22 @@
+# Machine learning
+
+```{r}
+## unsupervised learning
+## principal components analysis, only works with numeric data
+
+## remove any non-numeric variables
+iris_num <- select(iris, -Species)
+
+## do PCA
+pcas <- prcomp(iris_num, scale. = T)
+summary(pcas)
+pcas$rotation
+
+##get the x values of PCAs and make it a data frame
+pca_vals <- as.data.frame(pcas$x)
+pca_vals$Species <- iris$Species
+
+ggplot(pca_vals, aes(PC1, PC2, color = Species)) +
+  geom_point() +
+  theme_minimal()
+```
